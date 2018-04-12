@@ -15,6 +15,7 @@ contract Voting {
         candidates.push(Candidate("Alice", keccak256("Alice")));
         candidates.push(Candidate("Bob", keccak256("Bob")));
         candidates.push(Candidate("Charlie", keccak256("Charlie")));
+
     }
 
     modifier voterGuard(string token) {
@@ -23,7 +24,6 @@ contract Voting {
         _;
     }
 
-    
     function ret1(string token) voterGuard(token) public returns(uint) {
         return 1;
     }
@@ -35,4 +35,41 @@ contract Voting {
     function showCandidate(uint index) returns (string, bytes32) {
         return (candidates[index].name, candidates[index].id);
     }
+
+    // Warden Functionality
+
+    uint private securityDep = 0.5 ether;
+    uint private wardenLimit = 2;
+    uint wid = 1;
+
+    mapping (address => bool) wardenExists;
+    mapping (address => uint) refundAmount;
+    mapping (address => uint) wardens;
+    mapping (uint => bytes) enKeys;
+
+    modifier wardenGuard(bool val) {
+        require(wardenExists[msg.sender] == val);
+        _;
+    }
+
+    modifier greaterThanGuard(uint lhs, uint rhs) {
+        require(lhs > rhs);
+        _;
+    }
+
+
+    function wardenRegister() public wardenGuard(false) greaterThanGuard(wardenLimit, 0) {
+        wardenExists[msg.sender] = true;
+        wardens[msg.sender] = wid;
+        wid += 1;
+        wardenLimit -= 1;
+    }
+
+    function depositSecurity() external payable wardenGuard(true) greaterThanGuard(msg.value, securityDep) {
+        refundAmount[msg.sender] = msg.value - securityDep;
+    }
+
+   function submitEncryptionKey(bytes rsaModulus) public wardenGuard(true) greaterThanGuard(refundAmount[msg.sender], 0) {
+       enKeys[wardens[msg.sender]] = rsaModulus;
+   }
 }

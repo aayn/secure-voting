@@ -7,6 +7,5 @@ def keygen():
     key = generate(2048)
     return key.publickey, key
 
-
-
-    
+pu, pr = keygen()
+print(pu)

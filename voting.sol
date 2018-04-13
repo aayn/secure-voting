@@ -18,6 +18,20 @@ contract Voting {
 
     }
 
+    // update window timing 
+    
+    uint[] VotingWindow_ = [2,34];
+    uint[] StartWindow_ = [36,70];
+    uint[] countingWindow_ = [72,112];
+    uint[] WithdrawWindow_ = [72,112];
+
+    
+    modifier WindowGuard ( uint[] Window_ ) {
+        require( now > Window_[0] );
+        require( now < Window_[1] );
+        _;
+        }
+    
     modifier voterGuard(string token) {
         bytes32 thash = keccak256(token);
         require(tokenHashes[thash] == true);
@@ -69,7 +83,7 @@ contract Voting {
         refundAmount[msg.sender] = msg.value - securityDep;
     }
     
-   function WithdrawSecurity() external payable wardenGuard(true) greaterThanGuard(refundAmount[msg.sender] , 0){
+   function WithdrawSecurity() external payable wardenGuard(true) greaterThanGuard(refundAmount[msg.sender] , 0) WindowGuard( WithdrawWindow_) {
         msg.sender.transfer(securityDep + refundAmount[msg.sender] )
         refundAmount[msg.sender] = 0
         

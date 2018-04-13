@@ -1,4 +1,4 @@
-pragma solidity ^1.4.18;
+pragma solidity ^0.4.18;
 
 contract Voting {
     mapping (bytes32 => bool) tokenHashes;
@@ -18,20 +18,6 @@ contract Voting {
 
     }
 
-    // update window timing 
-    
-    uint[] VotingWindow_ = [2,34];
-    uint[] StartWindow_ = [36,70];
-    uint[] countingWindow_ = [72,112];
-    uint[] WithdrawWindow_ = [72,112];
-
-    
-    modifier WindowGuard ( uint[] Window_ ) {
-        require( now > Window_[0] );
-        require( now < Window_[1] );
-        _;
-        }
-    
     modifier voterGuard(string token) {
         bytes32 thash = keccak256(token);
         require(tokenHashes[thash] == true);
@@ -46,7 +32,7 @@ contract Voting {
         return candidates.length;
     }
 
-    function showCandidate(uint index) returns (string, bytes32) {
+    function showCandidate(uint index) public returns (string, bytes32) {
         return (candidates[index].name, candidates[index].id);
     }
 
@@ -83,9 +69,9 @@ contract Voting {
         refundAmount[msg.sender] = msg.value - securityDep;
     }
     
-   function WithdrawSecurity() external payable wardenGuard(true) greaterThanGuard(refundAmount[msg.sender] , 0) WindowGuard( WithdrawWindow_) {
-        msg.sender.transfer(securityDep + refundAmount[msg.sender] )
-        refundAmount[msg.sender] = 0
+   function withdrawSecurity() external payable wardenGuard(true) greaterThanGuard(refundAmount[msg.sender], 0) {
+        msg.sender.transfer(securityDep + refundAmount[msg.sender]);
+        refundAmount[msg.sender] = 0;
         
 	}
     

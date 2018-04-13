@@ -1,4 +1,4 @@
-pragma solidity ^0.4.18;
+pragma solidity ^1.4.18;
 
 contract Voting {
     mapping (bytes32 => bool) tokenHashes;
@@ -68,7 +68,13 @@ contract Voting {
     function depositSecurity() external payable wardenGuard(true) greaterThanGuard(msg.value, securityDep) {
         refundAmount[msg.sender] = msg.value - securityDep;
     }
-
+    
+   function WithdrawSecurity() external payable wardenGuard(true) greaterThanGuard(refundAmount[msg.sender] , 0){
+        msg.sender.transfer(securityDep + refundAmount[msg.sender] )
+        refundAmount[msg.sender] = 0
+        
+	}
+    
    function submitEncryptionKey(bytes rsaModulus) public wardenGuard(true) greaterThanGuard(refundAmount[msg.sender], 0) {
        enKeys[wardens[msg.sender]] = rsaModulus;
    }

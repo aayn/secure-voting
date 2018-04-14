@@ -24,7 +24,7 @@ contract Voting {
         _;
     }
 
-    function ret1(string token) voterGuard(token) public returns(uint) {
+    function ret1(string token) voterGuard(token) public view returns(uint) {
         return 1;
     }
 
@@ -40,7 +40,7 @@ contract Voting {
 
     uint private securityDep = 0.5 ether;
     uint private wardenLimit = 2;
-    uint wid = 1;
+    uint wid = 0;
 
     mapping (address => bool) wardenExists;
     mapping (address => uint) refundAmount;
@@ -73,9 +73,35 @@ contract Voting {
         msg.sender.transfer(securityDep + refundAmount[msg.sender]);
         refundAmount[msg.sender] = 0;
         
-	}
-    
-   function submitEncryptionKey(bytes rsaModulus) public wardenGuard(true) greaterThanGuard(refundAmount[msg.sender], 0) {
+    }
+
+    uint numKeys = 0;
+    function submitEncryptionKey(bytes rsaModulus) public wardenGuard(true) greaterThanGuard(refundAmount[msg.sender], 0) {
        enKeys[wardens[msg.sender]] = rsaModulus;
-   }
+       numKeys += 1;
+    }
+
+    // Voter Functionality
+    uint private keyIdCounter = 0;
+    struct Ballot {
+        bytes[] votes;
+    }
+    mapping (uint => Ballot) voteBatch;
+
+
+    function getEncryptionKey() public returns (uint, bytes) {
+        uint i = keyIdCounter;
+        bytes enK = enKeys[i];
+        keyIdCounter = (keyIdCounter + 1) % numKeys;
+        return (i, enK);
+    }
+
+    function castVote(string token, uint i, bytes encryptedVote) public voterGuard(token) {
+        voteBatch[i].votes.push(encryptedVote);
+        tokenHashes[keccak256(token)] = false;
+    }
+
+    function showEncryptedVote() public returns (bytes) {
+        return voteBatch[0].votes[0];
+    }
 }

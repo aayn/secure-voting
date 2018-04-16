@@ -45,7 +45,8 @@ contract Voting {
     mapping (address => bool) wardenExists;
     mapping (address => uint) refundAmount;
     mapping (address => uint) wardens;
-    mapping (uint => bytes) enKeys;
+    mapping (uint => string) enKeys;
+    mapping (uint => string) deKeys;
 
     modifier wardenGuard(bool val) {
         require(wardenExists[msg.sender] == val);
@@ -76,32 +77,36 @@ contract Voting {
     }
 
     uint numKeys = 0;
-    function submitEncryptionKey(bytes rsaModulus) public wardenGuard(true) greaterThanGuard(refundAmount[msg.sender], 0) {
+    function submitEncryptionKey(string rsaModulus) public wardenGuard(true) greaterThanGuard(refundAmount[msg.sender], 0) {
        enKeys[wardens[msg.sender]] = rsaModulus;
        numKeys += 1;
+    }
+
+    function submitDecryptionKey(string privateExponent) public wardenGuard(true) greaterThanGuard(refundAmount[msg.sender], 0) {
+        deKeys[wardens[msg.sender]] = privateExponent;
     }
 
     // Voter Functionality
     uint private keyIdCounter = 0;
     struct Ballot {
-        bytes[] votes;
+        string[] votes;
     }
     mapping (uint => Ballot) voteBatch;
 
 
-    function getEncryptionKey() public returns (uint, bytes) {
+    function getEncryptionKey() public returns (uint, string) {
         uint i = keyIdCounter;
-        bytes enK = enKeys[i];
+        string enK = enKeys[i];
         keyIdCounter = (keyIdCounter + 1) % numKeys;
         return (i, enK);
     }
 
-    function castVote(string token, uint i, bytes encryptedVote) public voterGuard(token) {
+    function castVote(string token, uint i, string encryptedVote) public voterGuard(token) {
         voteBatch[i].votes.push(encryptedVote);
         tokenHashes[keccak256(token)] = false;
     }
 
-    function showEncryptedVote() public returns (bytes) {
+    function showEncryptedVote() public returns (string) {
         return voteBatch[0].votes[0];
     }
 }

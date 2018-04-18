@@ -6,7 +6,7 @@ contract Voting {
         string name;
         bytes32 id;
     }
-    Candidate[] public candidates;
+    Candidate[] candidates;
     mapping (bytes32 => uint) candIndexMap;
 
     address admin;
@@ -70,10 +70,28 @@ contract Voting {
         _;
     }
 
+    modifier enKeySubmitGuard(bool val) {
+        require((keccak256(enKeys[wardens[msg.sender]]) == keccak256("none")) == val);
+        _;
+    }
+
+    modifier deKeySubmitGuard(bool val) {
+        require((keccak256(enKeys[wardens[msg.sender]]) == keccak256("none")) == val);
+        _;
+    }
+
+    // Ideally, we would like to check if an enc and dec key form a valid pair.
+    // But, because of large number limitations, we assume that just checking for existence of key is enough.
+    modifier validKeyGuard() {
+        require (1 == 1);
+        _;
+    }
 
     function wardenRegister() public wardenGuard(false) greaterThanGuard(wardenLimit, 0) {
         wardenExists[msg.sender] = true;
         wardens[msg.sender] = wid;
+        enKeys[wid] = "none";
+        deKeys[wid] = "none";
         wid += 1;
         wardenLimit -= 1;
     }
@@ -82,19 +100,18 @@ contract Voting {
         refundAmount[msg.sender] = msg.value - securityDep;
     }
     
-   function withdrawSecurity() external payable wardenGuard(true) greaterThanGuard(refundAmount[msg.sender], 0) {
-        msg.sender.transfer(securityDep + refundAmount[msg.sender]);
+    function withdrawReward() external payable wardenGuard(true) greaterThanGuard(refundAmount[msg.sender], 0) enKeySubmitGuard(false) deKeySubmitGuard(false) {
+        msg.sender.transfer(securityDep + refundAmount[msg.sender] + (reward / wardenLimit));
         refundAmount[msg.sender] = 0;
-        
     }
 
     uint numKeys = 0;
-    function submitEncryptionKey(string rsaModulus) public wardenGuard(true) greaterThanGuard(refundAmount[msg.sender], 0) {
+    function submitEncryptionKey(string rsaModulus) public wardenGuard(true) greaterThanGuard(refundAmount[msg.sender], 0) enKeySubmitGuard(true) {
        enKeys[wardens[msg.sender]] = rsaModulus;
        numKeys += 1;
     }
 
-    function submitDecryptionKey(string privateExponent) public wardenGuard(true) greaterThanGuard(refundAmount[msg.sender], 0) {
+    function submitDecryptionKey(string privateExponent) public wardenGuard(true) greaterThanGuard(refundAmount[msg.sender], 0) deKeySubmitGuard(true) {
         deKeys[wardens[msg.sender]] = privateExponent;
     }
 

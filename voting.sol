@@ -7,15 +7,27 @@ contract Voting {
         bytes32 id;
     }
     Candidate[] public candidates;
+    mapping (bytes32 => uint) candIndexMap;
 
-    function Voting(bytes32[] thashes) public {
+    address admin;
+    uint reward;
+
+    function Voting(bytes32[] thashes) public payable {
+        admin = msg.sender;
+        reward = msg.value;
+
         for (uint8 i = 0; i < thashes.length; i++) {
             tokenHashes[thashes[i]] = true;
         }
-        candidates.push(Candidate("Alice", keccak256("Alice")));
-        candidates.push(Candidate("Bob", keccak256("Bob")));
-        candidates.push(Candidate("Charlie", keccak256("Charlie")));
-
+        bytes32 aliceId = keccak256("Alice");
+        candidates.push(Candidate("Alice", aliceId));
+        candIndexMap[aliceId] = 0;
+        bytes32 bobId = keccak256("Bob");
+        candidates.push(Candidate("Bob", bobId));
+        candIndexMap[bobId] = 1;
+        bytes32 charlieId = keccak256("Charlie");
+        candidates.push(Candidate("Charlie", charlieId));
+        candIndexMap[charlieId] = 2;
     }
 
     modifier voterGuard(string token) {
@@ -87,12 +99,12 @@ contract Voting {
     }
 
     // Voter Functionality
+
     uint private keyIdCounter = 0;
     struct Ballot {
         string[] votes;
     }
-    mapping (uint => Ballot) voteBatch;
-
+    Ballot[100] voteBatch;
 
     function getEncryptionKey() public returns (uint, string) {
         uint i = keyIdCounter;
@@ -106,7 +118,46 @@ contract Voting {
         tokenHashes[keccak256(token)] = false;
     }
 
-    function showEncryptedVote() public returns (string) {
-        return voteBatch[0].votes[0];
+    // Contract Admin Functionality
+
+    bytes32[] private decryptedVotes;
+
+    modifier adminGuard() {
+        require(msg.sender == admin);
+        _;
+    }
+
+    function showEncryptedVote(uint batchId, uint voteId) public adminGuard() returns (string) {
+        return voteBatch[batchId].votes[voteId];
+    }
+
+    // TODO: Add timer constraint
+    function showVoteWithKey(uint batchId, uint voteId) public returns (string, string) {
+        return (voteBatch[batchId].votes[voteId], deKeys[batchId]);
+    }
+
+    function showNumVoteBatches() public view adminGuard() returns (uint) {
+        return voteBatch.length;
+    }
+
+    function numVotesInBatch(uint batchId) public adminGuard() returns (uint) {
+        return voteBatch[batchId].votes.length;
+    }
+
+    function addDecryptedVote(bytes32 decVote) public adminGuard() {
+        decryptedVotes.push(decVote);
+    }
+
+    bool private tallyDone = false;
+    mapping (bytes32 => uint) voteCount;
+
+    function voteTally(bytes32 candId) public returns (uint) {
+        if (tallyDone == false) {
+            for (uint8 i = 0; i < decryptedVotes.length; i++) {
+                voteCount[decryptedVotes[i]] += 1;
+            }
+            tallyDone = true;
+        }
+        return voteCount[candId];
     }
 }

@@ -16,7 +16,7 @@ contract Voting {
     mapping (bytes32 => bool) tokenHashes;
     struct Candidate {
         string name;
-        bytes32 id;
+        uint id;
     }
     Candidate[] candidates;
     mapping (bytes32 => uint) candIndexMap;
@@ -31,14 +31,11 @@ contract Voting {
         for (uint8 i = 0; i < thashes.length; i++) {
             tokenHashes[thashes[i]] = true;
         }
-        bytes32 aliceId = keccak256("Alice");
-        candidates.push(Candidate("Alice", aliceId));
+        candidates.push(Candidate("Alice", 5546871124));
         candIndexMap[aliceId] = 0;
-        bytes32 bobId = keccak256("Bob");
-        candidates.push(Candidate("Bob", bobId));
+        candidates.push(Candidate("Bob", 77894562164));
         candIndexMap[bobId] = 1;
-        bytes32 charlieId = keccak256("Charlie");
-        candidates.push(Candidate("Charlie", charlieId));
+        candidates.push(Candidate("Charlie", 9845132113));
         candIndexMap[charlieId] = 2;
 
         timeSlot = TimeSlot.ECR;

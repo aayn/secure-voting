@@ -1,6 +1,18 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 contract Voting {
+    event TimeEvent(TimeSlot _before, TimeSlot current, TimeSlot _after);
+
+    enum TimeSlot {BCR, ECR, BTD, ETD, BVC, EVC, BVT, END}
+    TimeSlot timeSlot;
+
+    modifier timeGuard(TimeSlot _before, TimeSlot _after) {
+        emit TimeEvent(_before, timeSlot, _after);
+        require(timeSlot > _before, "Invalid timestamp.");
+        require(timeSlot <= _after, "Invalid timestamp.");
+        _;
+    }
+
     mapping (bytes32 => bool) tokenHashes;
     struct Candidate {
         string name;
@@ -28,16 +40,14 @@ contract Voting {
         bytes32 charlieId = keccak256("Charlie");
         candidates.push(Candidate("Charlie", charlieId));
         candIndexMap[charlieId] = 2;
+
+        timeSlot = TimeSlot.ECR;
     }
 
     modifier voterGuard(string token) {
         bytes32 thash = keccak256(token);
         require(tokenHashes[thash] == true);
         _;
-    }
-
-    function ret1(string token) voterGuard(token) public view returns(uint) {
-        return 1;
     }
 
     function getNumCandidates() view public returns (uint) {
@@ -61,22 +71,22 @@ contract Voting {
     mapping (uint => string) deKeys;
 
     modifier wardenGuard(bool val) {
-        require(wardenExists[msg.sender] == val);
+        require(wardenExists[msg.sender] == val, "Warden Guard triggered.");
         _;
     }
 
     modifier greaterThanGuard(uint lhs, uint rhs) {
-        require(lhs > rhs);
+        require(lhs > rhs, "Greater Than Guard triggered.");
         _;
     }
 
     modifier enKeySubmitGuard(bool val) {
-        require((keccak256(enKeys[wardens[msg.sender]]) == keccak256("none")) == val);
+        require((keccak256(enKeys[wardens[msg.sender]]) == keccak256("none")) == val, "Encryption Key Submit Guard triggered.");
         _;
     }
 
     modifier deKeySubmitGuard(bool val) {
-        require((keccak256(enKeys[wardens[msg.sender]]) == keccak256("none")) == val);
+        require((keccak256(deKeys[wardens[msg.sender]]) == keccak256("none")) == val, "Decryption Key Submit Guard triggered.");
         _;
     }
 
@@ -87,7 +97,7 @@ contract Voting {
         _;
     }
 
-    function wardenRegister() public wardenGuard(false) greaterThanGuard(wardenLimit, 0) {
+    function wardenRegister() public wardenGuard(false) timeGuard(TimeSlot(0), TimeSlot.BVC) greaterThanGuard(wardenLimit, 0) {
         wardenExists[msg.sender] = true;
         wardens[msg.sender] = wid;
         enKeys[wid] = "none";
@@ -96,17 +106,17 @@ contract Voting {
         wardenLimit -= 1;
     }
 
-    function depositSecurity() external payable wardenGuard(true) greaterThanGuard(msg.value, securityDep) {
+    function depositSecurity() external payable wardenGuard(true) timeGuard(TimeSlot(0), TimeSlot.BVC) greaterThanGuard(msg.value, securityDep) {
         refundAmount[msg.sender] = msg.value - securityDep;
     }
     
-    function withdrawReward() external payable wardenGuard(true) greaterThanGuard(refundAmount[msg.sender], 0) enKeySubmitGuard(false) deKeySubmitGuard(false) {
+    function withdrawReward() external payable wardenGuard(true) timeGuard(TimeSlot.BVT, TimeSlot.END) greaterThanGuard(refundAmount[msg.sender], 0) enKeySubmitGuard(false) deKeySubmitGuard(false) {
         msg.sender.transfer(securityDep + refundAmount[msg.sender] + (reward / wardenLimit));
         refundAmount[msg.sender] = 0;
     }
 
     uint numKeys = 0;
-    function submitEncryptionKey(string rsaModulus) public wardenGuard(true) greaterThanGuard(refundAmount[msg.sender], 0) enKeySubmitGuard(true) {
+    function submitEncryptionKey(string rsaModulus) public wardenGuard(true) timeGuard(TimeSlot(0), TimeSlot.BVC) greaterThanGuard(refundAmount[msg.sender], 0) enKeySubmitGuard(true) {
        enKeys[wardens[msg.sender]] = rsaModulus;
        numKeys += 1;
     }
@@ -123,33 +133,36 @@ contract Voting {
     }
     Ballot[100] voteBatch;
 
-    function getEncryptionKey() public returns (uint, string) {
+    function getEncryptionKey() public timeGuard(TimeSlot.BVC, TimeSlot.EVC) returns (uint, string) {
         uint i = keyIdCounter;
         string enK = enKeys[i];
         keyIdCounter = (keyIdCounter + 1) % numKeys;
         return (i, enK);
     }
 
-    function castVote(string token, uint i, string encryptedVote) public voterGuard(token) {
+    function castVote(string token, uint i, string encryptedVote) public timeGuard(TimeSlot.BVC, TimeSlot.EVC) voterGuard(token) {
         voteBatch[i].votes.push(encryptedVote);
         tokenHashes[keccak256(token)] = false;
     }
 
     // Contract Admin Functionality
-
     bytes32[] private decryptedVotes;
 
     modifier adminGuard() {
-        require(msg.sender == admin);
+        require(msg.sender == admin, "User is not an admin.");
         _;
+    }
+
+    function nextTimeSlot() public adminGuard() {
+        timeSlot = TimeSlot(uint(timeSlot) + 1);
+        emit TimeEvent(timeSlot, timeSlot, timeSlot);
     }
 
     function showEncryptedVote(uint batchId, uint voteId) public adminGuard() returns (string) {
         return voteBatch[batchId].votes[voteId];
     }
 
-    // TODO: Add timer constraint
-    function showVoteWithKey(uint batchId, uint voteId) public returns (string, string) {
+    function showVoteWithKey(uint batchId, uint voteId) public timeGuard(TimeSlot.EVC, TimeSlot.BVT) returns (string, string) {
         return (voteBatch[batchId].votes[voteId], deKeys[batchId]);
     }
 
@@ -168,7 +181,7 @@ contract Voting {
     bool private tallyDone = false;
     mapping (bytes32 => uint) voteCount;
 
-    function voteTally(bytes32 candId) public returns (uint) {
+    function voteTally(bytes32 candId) public timeGuard(TimeSlot.BVT, TimeSlot.END) returns (uint) {
         if (tallyDone == false) {
             for (uint8 i = 0; i < decryptedVotes.length; i++) {
                 voteCount[decryptedVotes[i]] += 1;

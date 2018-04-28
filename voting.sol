@@ -19,7 +19,7 @@ contract Voting {
         uint id;
     }
     Candidate[] candidates;
-    mapping (bytes32 => uint) candIndexMap;
+    mapping (uint => uint) candIndexMap;
 
     address admin;
     uint reward;
@@ -31,11 +31,14 @@ contract Voting {
         for (uint8 i = 0; i < thashes.length; i++) {
             tokenHashes[thashes[i]] = true;
         }
-        candidates.push(Candidate("Alice", 5546871124));
+        uint aliceId = 5546871124;
+        candidates.push(Candidate("Alice", aliceId));
         candIndexMap[aliceId] = 0;
-        candidates.push(Candidate("Bob", 77894562164));
+        uint bobId = 77894562164;
+        candidates.push(Candidate("Bob", bobId));
         candIndexMap[bobId] = 1;
-        candidates.push(Candidate("Charlie", 9845132113));
+        uint charlieId = 9845132113;
+        candidates.push(Candidate("Charlie", charlieId));
         candIndexMap[charlieId] = 2;
 
         timeSlot = TimeSlot.ECR;
@@ -51,7 +54,7 @@ contract Voting {
         return candidates.length;
     }
 
-    function showCandidate(uint index) public returns (string, bytes32) {
+    function showCandidate(uint index) public returns (string, uint) {
         return (candidates[index].name, candidates[index].id);
     }
 

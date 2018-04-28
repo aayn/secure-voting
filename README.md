@@ -23,3 +23,5 @@ decryption is done outside the contract by the contract creator/admin.
 * Run `python vote_security.py` to run a key generation, encryption and
 decryption interface.
 * 5 tokens and thier hashes are there in tokens.txt.
+* Warden registration does not require security, it's done separately.
+* Wardens must deposit security before submitting any keys.
